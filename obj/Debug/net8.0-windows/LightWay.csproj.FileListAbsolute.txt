@@ -1,0 +1,16 @@
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\bin\Debug\net8.0-windows\LightWay.exe
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\bin\Debug\net8.0-windows\LightWay.deps.json
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\bin\Debug\net8.0-windows\LightWay.runtimeconfig.json
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\bin\Debug\net8.0-windows\LightWay.dll
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\bin\Debug\net8.0-windows\LightWay.pdb
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.AssemblyInfoInputs.cache
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.AssemblyInfo.cs
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.csproj.CoreCompileInputs.cache
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.dll
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\refint\LightWay.dll
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.pdb
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.genruntimeconfig.cache
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\ref\LightWay.dll
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.GameForm.resources
+C:\Users\Zver\Downloads\LightWay_Step1\LightWay_Step1\obj\Debug\net8.0-windows\LightWay.csproj.GenerateResource.cache
