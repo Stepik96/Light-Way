@@ -10,7 +10,9 @@ namespace LightWay
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new GameForm());
+
+            // Запускаем главное меню — оно само откроет GameForm
+            Application.Run(new MenuForm());
         }
     }
 }

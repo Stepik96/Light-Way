@@ -13,15 +13,28 @@ namespace LightWay
     {
         private readonly GameEngine _engine;
 
+        /// <summary>
+        /// Итоговые очки сессии — читает MenuForm после закрытия игры.
+        /// </summary>
+        public int FinalScore => _engine.TotalScore;
+
+        /// <summary>
+        /// Какие уровни были пройдены за текущий запуск GameForm.
+        /// Индекс 0 — уровень 1, индекс 4 — уровень 5.
+        /// MenuForm читает массив после закрытия игры и сливает его
+        /// с сохранёнными флагами через CompletedLevelsSaver.
+        /// </summary>
+        public bool[] SessionCompletedLevels { get; } = new bool[Level.TotalLevels];
+
         // Размеры отрисовки
-        private const int CellSize = 46;       // Размер одной клетки в пикселях
-        private const int GridOffset = 20;      // Отступ сетки от края формы
-        /// <summary>Высота полосы под сеткой: таймер сразу под «ходами», затем статус и кнопки (окно ниже, без обрезки).</summary>
+        private const int CellSize = 46;
+        private const int GridOffset = 20;
         private const int BottomStripHeight = 158;
 
         // Кнопки управления
         private Button _btnReset = null!;
         private Button _btnNext = null!;
+        private Button _btnMenu = null!;
         private Label _lblLevel = null!;
         private Label _lblStatus = null!;
         private Label _lblScore = null!;
@@ -32,31 +45,52 @@ namespace LightWay
         private readonly System.Windows.Forms.Timer _gameTimer = new System.Windows.Forms.Timer();
 
         // Цвета (тема игры)
-        private readonly Color _colorBackground  = Color.FromArgb(20, 20, 35);
-        private readonly Color _colorGridLine     = Color.FromArgb(40, 50, 80);
-        private readonly Color _colorCellDefault  = Color.FromArgb(28, 28, 48);
-        private readonly Color _colorCellLit      = Color.FromArgb(45, 45, 70);
-        private readonly Color _colorSource       = Color.FromArgb(255, 220, 50);
-        private readonly Color _colorReceiver     = Color.FromArgb(50, 200, 50);
-        private readonly Color _colorReceiverLit  = Color.FromArgb(100, 255, 100);
-        private readonly Color _colorMirror       = Color.FromArgb(140, 180, 220);
-        private readonly Color _colorBeam         = Color.FromArgb(255, 255, 100);
-        private readonly Color _colorBeamGlow     = Color.FromArgb(80, 255, 255, 100);
+        private readonly Color _colorBackground = Color.FromArgb(20, 20, 35);
+        private readonly Color _colorGridLine = Color.FromArgb(40, 50, 80);
+        private readonly Color _colorCellDefault = Color.FromArgb(28, 28, 48);
+        private readonly Color _colorCellLit = Color.FromArgb(45, 45, 70);
+        private readonly Color _colorSource = Color.FromArgb(255, 220, 50);
+        private readonly Color _colorReceiver = Color.FromArgb(50, 200, 50);
+        private readonly Color _colorReceiverLit = Color.FromArgb(100, 255, 100);
+        private readonly Color _colorMirror = Color.FromArgb(140, 180, 220);
+        private readonly Color _colorBeam = Color.FromArgb(255, 255, 100);
+        private readonly Color _colorBeamGlow = Color.FromArgb(80, 255, 255, 100);
 
+        /// <summary>
+        /// Конструктор без параметров — запускает с уровня 1, очки с нуля.
+        /// Оставлен для совместимости с тестами.
+        /// </summary>
         public GameForm()
+            : this(1, 0)
         {
-            _engine = new GameEngine();
+        }
+
+        /// <summary>
+        /// Основной конструктор: стартовый уровень и очки из предыдущей сессии.
+        /// </summary>
+        public GameForm(int startLevel, int carryScore)
+        {
+            var level = Level.LoadLevel(startLevel);
+            _engine = new GameEngine(level, startLevel);
+            _engine.TestingSetTotalScore(carryScore);
 
             InitializeForm();
             InitializeControls();
 
             // Подписка на события движка
-            _engine.StateChanged += () => {
+            _engine.StateChanged += () =>
+            {
                 UpdateUI();
-                Invalidate(); // Перерисовка
+                Invalidate();
             };
 
-            _engine.LevelCompleted += () => {
+            _engine.LevelCompleted += () =>
+            {
+                // Отмечаем пройденный уровень в массиве сессии
+                int idx = _engine.CurrentLevelNumber - 1;
+                if (idx >= 0 && idx < SessionCompletedLevels.Length)
+                    SessionCompletedLevels[idx] = true;
+
                 _lblStatus.Text = $"✨ Уровень пройден! +{_engine.LastLevelScore} очков";
                 _lblStatus.ForeColor = _colorReceiverLit;
                 _btnNext.Enabled = true;
@@ -64,7 +98,8 @@ namespace LightWay
                 Invalidate();
             };
 
-            _engine.LevelFailed += () => {
+            _engine.LevelFailed += () =>
+            {
                 _lblStatus.Text = "Проигрыш: закончились ходы или время. Нажмите Reset.";
                 _lblStatus.ForeColor = Color.FromArgb(255, 120, 120);
                 RefreshTimerRunning();
@@ -110,7 +145,6 @@ namespace LightWay
         {
             int gridPixels = Level.GridSize * CellSize;
             int formW = gridPixels + GridOffset * 2;
-            // Чуть ближе к сетке — меньше пустоты, всё помещается на экран
             int panelY = GridOffset + gridPixels + 8;
 
             // Метка уровня
@@ -185,7 +219,7 @@ namespace LightWay
             };
             this.Controls.Add(_lblTimeSuffix);
 
-            // Кнопки — над таймером, по краям (Z-order: добавляем последними)
+            // Кнопка Reset
             _btnReset = new Button
             {
                 Text = "↻ Reset",
@@ -209,6 +243,22 @@ namespace LightWay
             };
             this.Controls.Add(_btnReset);
 
+            // Кнопка «В меню» — по центру между Reset и Next
+            _btnMenu = new Button
+            {
+                Text = "☰ Меню",
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(45, 50, 75),
+                ForeColor = Color.FromArgb(180, 180, 210),
+                Font = new Font("Segoe UI", 10),
+                Size = new Size(90, 36),
+                Location = new Point((formW - 90) / 2, panelY + 128),
+                Cursor = Cursors.Hand
+            };
+            _btnMenu.FlatAppearance.BorderColor = Color.FromArgb(70, 75, 110);
+            _btnMenu.Click += (s, e) => GoToMenu();
+            this.Controls.Add(_btnMenu);
+
             // Кнопка Next
             _btnNext = new Button
             {
@@ -227,11 +277,13 @@ namespace LightWay
             {
                 if (!_engine.NextLevel())
                 {
+                    // Все уровни пройдены
                     MessageBox.Show(
                         $"Поздравляем! Все уровни пройдены.\nНабрано очков: {_engine.TotalScore}",
                         "Победа",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
+                    this.Close();
                     return;
                 }
                 _lblStatus.Text = "Кликайте по зеркалам для поворота";
@@ -246,7 +298,30 @@ namespace LightWay
         }
 
         /// <summary>
-        /// Раскладка: очки справа; таймер по центру сразу под строкой ходов (виден на невысоком мониторе).
+        /// Выход в главное меню. Останавливает таймер и закрывает форму.
+        /// Очки сохраняются в FinalScore и читаются MenuForm'ом.
+        /// </summary>
+        private void GoToMenu()
+        {
+            if (!_engine.IsLevelComplete && !_engine.IsLevelFailed)
+            {
+                var answer = MessageBox.Show(
+                    "Выйти в меню? Прогресс текущего уровня будет потерян.\n" +
+                    $"Очки за завершённые уровни ({_engine.TotalScore}) сохранятся.",
+                    "Выход в меню",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (answer != DialogResult.Yes)
+                    return;
+            }
+
+            _gameTimer.Stop();
+            this.Close();
+        }
+
+        /// <summary>
+        /// Раскладка нижней панели: очки справа, таймер по центру.
         /// </summary>
         private void ArrangeBottomPanel(int panelY, int formW)
         {
@@ -255,7 +330,6 @@ namespace LightWay
             Size scoreSize = TextRenderer.MeasureText(_lblScore.Text, _lblScore.Font);
             _lblScore.Location = new Point(formW - GridOffset - scoreSize.Width, panelY + 2);
 
-            // Таймер под «Поворотами», выше статуса и кнопок
             int timerBlockTop = panelY + 40;
             if (!_lblTimeSeconds.Visible)
             {
@@ -282,7 +356,6 @@ namespace LightWay
         {
             int gridPixels = Level.GridSize * CellSize;
             int formW = gridPixels + GridOffset * 2;
-            // Чуть ближе к сетке — меньше пустоты, всё помещается на экран
             int panelY = GridOffset + gridPixels + 8;
 
             _lblLevel.Text = $"Уровень {_engine.CurrentLevelNumber} / {Level.TotalLevels}";
@@ -345,9 +418,6 @@ namespace LightWay
             DrawObjects(g);
         }
 
-        /// <summary>
-        /// Отрисовка сетки 10×10 с подсветкой клеток на пути луча.
-        /// </summary>
         private void DrawGrid(Graphics g)
         {
             var level = _engine.CurrentLevel;
@@ -359,27 +429,21 @@ namespace LightWay
                     int x = GridOffset + c * CellSize;
                     int y = GridOffset + r * CellSize;
 
-                    // Фон клетки (подсветка если луч проходит)
                     Color bgColor = level.Grid[r, c].IsLit ? _colorCellLit : _colorCellDefault;
                     using (var brush = new SolidBrush(bgColor))
                         g.FillRectangle(brush, x, y, CellSize, CellSize);
 
-                    // Рамка клетки
                     using (var pen = new Pen(_colorGridLine, 1))
                         g.DrawRectangle(pen, x, y, CellSize, CellSize);
                 }
             }
         }
 
-        /// <summary>
-        /// Отрисовка луча — линия по точкам BeamPath с эффектом свечения.
-        /// </summary>
         private void DrawBeam(Graphics g)
         {
             var path = _engine.BeamPath;
             if (path.Count < 2) return;
 
-            // Внешнее свечение (толстая полупрозрачная линия)
             using (var glowPen = new Pen(_colorBeamGlow, 8))
             {
                 glowPen.StartCap = LineCap.Round;
@@ -394,7 +458,6 @@ namespace LightWay
                 }
             }
 
-            // Основная линия луча
             using (var beamPen = new Pen(_colorBeam, 3))
             {
                 beamPen.StartCap = LineCap.Round;
@@ -410,9 +473,6 @@ namespace LightWay
             }
         }
 
-        /// <summary>
-        /// Отрисовка объектов: источник, приёмник, зеркала.
-        /// </summary>
         private void DrawObjects(Graphics g)
         {
             var level = _engine.CurrentLevel;
@@ -424,63 +484,56 @@ namespace LightWay
                     Cell cell = level.Grid[r, c];
                     int x = GridOffset + c * CellSize;
                     int y = GridOffset + r * CellSize;
-                    int pad = 8; // Отступ от краёв клетки
+                    int pad = 8;
 
                     switch (cell.Type)
                     {
                         case CellType.Source:
                             DrawSource(g, x, y, pad);
                             break;
-
                         case CellType.Receiver:
                             DrawReceiver(g, x, y, pad, cell.IsLit);
                             break;
-
                         case CellType.MirrorLeft:
                             DrawMirror(g, x, y, pad, isLeft: true);
                             break;
-
                         case CellType.MirrorRight:
                             DrawMirror(g, x, y, pad, isLeft: false);
+                            break;
+                        case CellType.Wall:
+                            DrawWall(g, x, y);
                             break;
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// Источник света — жёлтый круг с лучами.
-        /// </summary>
         private void DrawSource(Graphics g, int x, int y, int pad)
         {
-            // Свечение вокруг
             using (var glowBrush = new SolidBrush(Color.FromArgb(40, 255, 220, 50)))
                 g.FillEllipse(glowBrush, x + 2, y + 2, CellSize - 4, CellSize - 4);
 
-            // Основной круг
             using (var brush = new SolidBrush(_colorSource))
                 g.FillEllipse(brush, x + pad, y + pad, CellSize - pad * 2, CellSize - pad * 2);
 
-            // Символ "☀" в центре
             using (var font = new Font("Segoe UI", 14, FontStyle.Bold))
             using (var brush = new SolidBrush(Color.FromArgb(180, 120, 0)))
             {
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("☀", font, brush,
-                    new RectangleF(x, y, CellSize, CellSize), sf);
+                var sf = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+                g.DrawString("☀", font, brush, new RectangleF(x, y, CellSize, CellSize), sf);
             }
         }
 
-        /// <summary>
-        /// Приёмник — зелёный квадрат с мишенью. Ярче если луч попал.
-        /// </summary>
         private void DrawReceiver(Graphics g, int x, int y, int pad, bool isLit)
         {
             Color color = isLit ? _colorReceiverLit : _colorReceiver;
 
             if (isLit)
             {
-                // Свечение при попадании
                 using (var glowBrush = new SolidBrush(Color.FromArgb(50, 100, 255, 100)))
                     g.FillRectangle(glowBrush, x + 2, y + 2, CellSize - 4, CellSize - 4);
             }
@@ -488,7 +541,6 @@ namespace LightWay
             using (var brush = new SolidBrush(color))
                 g.FillRectangle(brush, x + pad, y + pad, CellSize - pad * 2, CellSize - pad * 2);
 
-            // Мишень внутри
             using (var pen = new Pen(Color.White, 2))
             {
                 int cx = x + CellSize / 2;
@@ -498,45 +550,44 @@ namespace LightWay
             }
         }
 
-        /// <summary>
-        /// Зеркало — линия "\" или "/" с рамкой.
-        /// </summary>
         private void DrawMirror(Graphics g, int x, int y, int pad, bool isLeft)
         {
-            // Фон зеркала
             using (var brush = new SolidBrush(Color.FromArgb(35, 40, 65)))
-                g.FillRectangle(brush, x + pad / 2, y + pad / 2,
-                    CellSize - pad, CellSize - pad);
+                g.FillRectangle(brush, x + pad / 2, y + pad / 2, CellSize - pad, CellSize - pad);
 
-            // Рамка
             using (var pen = new Pen(Color.FromArgb(80, 100, 140), 1))
-                g.DrawRectangle(pen, x + pad / 2, y + pad / 2,
-                    CellSize - pad, CellSize - pad);
+                g.DrawRectangle(pen, x + pad / 2, y + pad / 2, CellSize - pad, CellSize - pad);
 
-            // Линия зеркала
             using (var pen = new Pen(_colorMirror, 3))
             {
                 pen.StartCap = LineCap.Round;
                 pen.EndCap = LineCap.Round;
 
-                if (isLeft) // "\" — из верхнего-левого в нижний-правый
-                {
-                    g.DrawLine(pen,
-                        x + pad + 2, y + pad + 2,
+                if (isLeft)
+                    g.DrawLine(pen, x + pad + 2, y + pad + 2,
                         x + CellSize - pad - 2, y + CellSize - pad - 2);
-                }
-                else // "/" — из нижнего-левого в верхний-правый
-                {
-                    g.DrawLine(pen,
-                        x + pad + 2, y + CellSize - pad - 2,
+                else
+                    g.DrawLine(pen, x + pad + 2, y + CellSize - pad - 2,
                         x + CellSize - pad - 2, y + pad + 2);
-                }
             }
         }
 
-        /// <summary>
-        /// Координаты центра клетки (для рисования луча).
-        /// </summary>
+        private void DrawWall(Graphics g, int x, int y)
+        {
+            using (var brush = new SolidBrush(Color.FromArgb(60, 65, 85)))
+                g.FillRectangle(brush, x + 2, y + 2, CellSize - 4, CellSize - 4);
+
+            using (var pen = new Pen(Color.FromArgb(90, 95, 120), 2))
+                g.DrawRectangle(pen, x + 2, y + 2, CellSize - 4, CellSize - 4);
+
+            using (var pen = new Pen(Color.FromArgb(110, 115, 140), 2))
+            {
+                int m = 10;
+                g.DrawLine(pen, x + m, y + m, x + CellSize - m, y + CellSize - m);
+                g.DrawLine(pen, x + CellSize - m, y + m, x + m, y + CellSize - m);
+            }
+        }
+
         private PointF CellCenter(int row, int col)
         {
             return new PointF(
@@ -551,18 +602,26 @@ namespace LightWay
         {
             base.OnMouseClick(e);
 
-            // Пересчёт координат мыши → координаты клетки
             int col = (e.X - GridOffset) / CellSize;
             int row = (e.Y - GridOffset) / CellSize;
 
-            // Проверка попадания в сетку
             if (e.X >= GridOffset && e.Y >= GridOffset)
                 _engine.HandleCellClick(row, col);
         }
 
-        /// <summary>
-        /// Изменение курсора при наведении на зеркало.
-        /// </summary>
+        private void InitializeComponent()
+        {
+            SuspendLayout();
+            // 
+            // GameForm
+            // 
+            ClientSize = new Size(1554, 870);
+            Name = "GameForm";
+            Load += GameForm_Load;
+            ResumeLayout(false);
+
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
@@ -580,6 +639,11 @@ namespace LightWay
             {
                 this.Cursor = Cursors.Default;
             }
+        }
+
+        private void GameForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

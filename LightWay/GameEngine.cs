@@ -238,6 +238,10 @@ namespace LightWay
                     case CellType.Source:
                         return;
 
+                    case CellType.Wall:
+                        // Луч упирается в стену и гаснет
+                        return;
+
                     case CellType.MirrorLeft:
                         dir = ReflectMirrorLeft(dir);
                         break;
